@@ -1,24 +1,25 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
 
 namespace BICSL
 {
+    public enum ResponseFormat
+    {
+        json,
+        html,
+        text
+    }
+
     static public class MeatGrinder
     {
         const string BASE_BACON_API_URI = "https://baconipsum.com/api/";
 
-        public enum ResponseFormat
-        {
-            json,
-            html,
-            text
-        }
-
         public static string GetParagraphs(int paragraphCount, ResponseFormat format, bool startWithLorem = false, bool allMeat = false)
         {
-            var url = GetApiURL(allMeat, paragraphCount: paragraphCount, startWithLorem: startWithLorem, format: ResponseFormat.html);
+            var url = GetApiURL(format, allMeat, paragraphCount: paragraphCount, startWithLorem: startWithLorem);
             return RequestIpsum(url);
         }
 
@@ -29,9 +30,9 @@ namespace BICSL
         /// <param name="allMeat">Meat only or meat mixed with miscellaneous ‘lorem ipsum’ filler.</param>
         /// <param name="startWithLorem">Start the first paragraph with ‘Bacon ipsum dolor...’.</param>
         /// <returns></returns>
-        public static string GetSentences(int sentenceCount, bool startWithLorem = false, bool allMeat = false)
+        public static string GetSentences(int sentenceCount, ResponseFormat format, bool startWithLorem = false, bool allMeat = false)
         {
-            var sentences = GetApiURL(allMeat, sentenceCount: sentenceCount, startWithLorem: startWithLorem);
+            var sentences = GetApiURL(format, allMeat, sentenceCount: sentenceCount, startWithLorem: startWithLorem);
             return RequestIpsum(sentences);
         }
 
@@ -42,9 +43,33 @@ namespace BICSL
         /// <param name="allMeat">Meat only or meat mixed with miscellaneous ‘lorem ipsum’ filler.</param>
         /// <param name="startWithLorem">Start the first paragraph with ‘Bacon ipsum dolor...’.</param>
         /// <returns></returns>
-        public static string GetWords(int wordCount, bool startWithLorem, bool allMeat = false)
+        public static List<string> GetWords(int wordCount, ResponseFormat format, bool startWithLorem = false, bool allMeat = false)
         {
-            throw new NotImplementedException();
+            var text = GetParagraphs(2, format, startWithLorem, allMeat);
+
+            var chars = text.ToCharArray();
+            List<char> nonWordChars = new List<char> { '"', '.', '?', ';', ':', ',', '\n', ' ', '\0' };
+            List<string> words = new List<string>();
+            StringBuilder currWord = new StringBuilder();
+
+            foreach (char c in chars)
+            {
+                if (nonWordChars.Contains(c))
+                {
+                    words.Add(currWord.ToString());
+
+                    if (words.Count >= wordCount)
+                        break;
+                    else
+                        currWord = new StringBuilder();
+                }
+                else
+                {
+                    currWord.Append(c);
+                }
+
+            }
+            return words;
         }
 
         /// <summary>
@@ -73,7 +98,7 @@ namespace BICSL
         /// <param name="paragraphCount">Number of paragraphs, defaults to 5.</param>
         /// <param name="loremStart">Start the first paragraph with ‘Bacon ipsum dolor...’.</param>
         /// <returns></returns>
-        static private string GetApiURL(bool allMeat, int sentenceCount = 0, int paragraphCount = 1, bool startWithLorem = true, ResponseFormat format = ResponseFormat.json)
+        static private string GetApiURL(ResponseFormat format, bool allMeat, int sentenceCount = 0, int paragraphCount = 1, bool startWithLorem = true)
         {
             StringBuilder requestUrl = new StringBuilder();
             requestUrl.Append(BASE_BACON_API_URI);
